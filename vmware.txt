@@ -1,0 +1,216 @@
+CLOUD COMPUTING LAB — STEP-BY-STEP PROCEDURE
+EXPERIMENT 1: Virtual Machines and Web Server Setup
+
+Step 1 — Install Ubuntu in VMware
+1. Open VMware Workstation.
+2. Click Create a New Virtual Machine.
+3. Select your Ubuntu ISO file.
+4. Complete the installation.
+5. Name the VM VM1.
+6. Log in to Ubuntu and open Terminal using Ctrl + Alt + T.
+
+Step 2 — Create two more VMs
+1. Shut down VM1.
+2. In VMware, right-click VM1.
+3. Select Manage → Clone.
+4. Choose Full Clone.
+5. Name the clone VM2.
+6. Repeat to create VM3.
+7. Start all three VMs.
+__________________________________________________________________________________________
+
+EXPERIMENT 2: Install and Configure Apache
+Perform Steps 3–8 on VM1 first, then repeat them on VM2.
+
+Step 3 — Open Terminal and update Ubuntu
+Type: sudo apt update
+
+Step 4 — Install Apache
+Type: sudo apt install apache2 -y
+
+Step 5 - Enable Apache
+Type: sudo systemctl enable apache2
+
+Step 6 — Start Apache
+Type: sudo systemctl start apache2
+
+Step 7 — Check Apache status
+Type: sudo systemctl status apache2 (press q to exit status screen)
+
+Step 8 — Create the web page
+On VM1 : echo "<h1>Hello from VM1</h1>" | sudo tee /var/www/html/index.html
+On VM2 : echo "<h1>Hello from VM2</h1>" | sudo tee /var/www/html/index.html
+
+Step 9 - Test the webpages
+On VM1 and VM2: curl http://localhost
+___________________________________________________________________________________________
+
+EXPERIMENT 3: Find the IP Address of Each VM
+
+Step 10 — Install network tools
+Run this command on VM1, VM2, and VM3: sudo apt install net-tools -y
+
+Step 11 — Find each VM's IP address
+On VM1, type: ifconfig (look for line like inet 192.168.1.10)
+Repeat on VM2 and VM3.
+
+Step 12 — Test communication between VMs
+On VM3, type: ping -c 4 VM1_IP Replace VM1_IP with VM1's actual IP address.
+	      ping -c 4 VM2_IP Replace VM2_IP with VM2's actual IP address.
+___________________________________________________________________________________________
+
+EXPERIMENT 4: Load Balancing Using HAProxy
+Do the following steps on VM3 only.
+
+Step 13 — Update Ubuntu
+Open Terminal on VM3 and type: sudo apt update
+
+Step 14 — Install HAProxy
+Type: sudo apt install haproxy -y
+
+Step 15 — Back up the configuration file
+Type: sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.backup
+
+Step 16 — Open the HAProxy configuration
+Type: sudo nano /etc/haproxy/haproxy.cfg
+Use the arrow keys to move to the bottom of the file.
+Add the following configuration:
+frontend http_front
+    bind *:80
+    default_backend http_back
+
+backend http_back
+    balance roundrobin
+    option httpchk GET /
+    server VM1 VM1_IP:80 check
+    server VM2 VM2_IP:80 check
+Step 17 — Replace the IP addresses
+Replace VM1_IP and VM2_IP with the actual addresses recorded in Step 11.
+
+Step 18 — Save the configuration
+While still inside Nano:
+1. Press Ctrl + O.
+2. Press Enter.
+3. Press Ctrl + X.
+You should return to the terminal.
+
+Step 19 — Check the HAProxy configuration
+Type: sudo haproxy -c -f /etc/haproxy/haproxy.cfg
+
+Step 20 — Restart HAProxy
+Type: sudo systemctl restart haproxy
+
+Step 21 — Enable HAProxy at startup
+Type: sudo systemctl enable haproxy
+
+Step 22 — Check HAProxy status
+Type: sudo systemctl status haproxy (press q to exit)
+
+Step 23 — Test load balancing
+On VM3, type: curl http://localhost Run it several times:
+
+Step 24 — Open the load balancer in a browser
+1. Open a browser on your computer.
+2. Enter VM3's IP address: http://VM3_IP (IP of VM3) 
+3. Press Enter.
+4. Refresh the page to test the web server responses.
+___________________________________________________________________________________________
+
+
+EXPERIMENT 5: Server Consolidation and Resource Monitoring
+
+Step 25 — Install htop
+Run this command on the VM you want to monitor:
+sudo apt update
+sudo apt install htop -y
+
+Step 26 — Display resource usage
+Type: htop (q to exit)
+
+Step 27 — Check VM resource allocation in VMware
+1. Open VMware Workstation.
+2. Select a VM.
+3. Click Edit virtual machine settings.
+4. Click Memory and record the RAM allocation.
+5. Click Processors and record the number of virtual CPUs.
+6. Repeat for the other VMs.
+___________________________________________________________________________________________
+
+EXPERIMENT 6: Task Scheduling Using a Shell Script and Cron
+Perform these steps on one Ubuntu VM.
+
+Step 28 — Create a shell script
+Open Terminal and type: nano script.sh
+
+Step 29 — Write the script
+Enter these two lines:
+#!/bin/bash
+echo "Hello from scheduled task"
+
+Step 30 — Save the script
+1. Press Ctrl + O.
+2. Press Enter.
+3. Press Ctrl + X.
+
+Step 31 — Give execution permission
+Type: chmod +x script.sh
+
+Step 32 — Find the script's full directory
+Type: pwd
+
+Step 33 — Execute the script manually
+Type: ./script.sh
+
+Step 34 — Open the cron editor
+Type: crontab -e
+
+Step 35 — Schedule the script to run every minute
+At the bottom of the file, add the following line. Replace /home/ubuntu if your actual path differs.
+
+* * * * * /home/ubuntu/script.sh >> /home/ubuntu/output.log 2>&1 (get the path from pwd)
+Field		   Meaning
+First  *	Every minute
+Second *	Every hour
+Third  *	Every day of the month
+Fourth *	Every month
+Fifth  *	Every day of the week
+
+Step 36 — Save and exit the cron editor
+1. Press Ctrl + O.
+2. Press Enter.
+3. Press Ctrl + X.
+
+Step 37 — Start and enable cron
+Type: sudo systemctl enable --now cron
+
+Step 38 — Check cron status
+Type: sudo systemctl status cron
+
+Step 39 — View the scheduled task output
+Wait one minute, then type: cat output.log
+___________________________________________________________________________________________
+
+
+EXPERIMENT 7: Fault Tolerance of the Load Balancer
+
+Step 40 — Stop Apache on VM1
+Open Terminal on VM1 and type: sudo systemctl stop apache2
+
+Step 41 — Confirm Apache has stopped
+On VM1, type: sudo systemctl is-active apache2
+
+Step 42 — Test the load balancer
+On VM3, type: curl http://localhost
+
+Run it several times.
+HAProxy should stop sending requests to VM1 after its health check marks it unavailable and continue serving requests from VM2.
+
+Step 43 — Restore Apache on VM1
+On VM1, type: sudo systemctl start apache2
+
+Step 44 — Verify Apache is running again
+Type: sudo systemctl status apache2
+___________________________________________________________________________________________
+
+
+
